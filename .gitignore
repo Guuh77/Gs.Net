@@ -1,0 +1,23 @@
+# Build output
+bin/
+obj/
+
+# IDE/user files
+.vs/
+.vscode/
+*.user
+*.suo
+
+# Test output
+TestResults/
+coverage/
+*.trx
+*.log
+
+# Local secrets and environment files
+.env
+appsettings.Local.json
+
+# OS files
+Thumbs.db
+Desktop.ini

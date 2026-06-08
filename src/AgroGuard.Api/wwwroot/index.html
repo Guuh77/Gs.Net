@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="AgroGuard Satellite: monitoramento agricola com dados da NASA POWER, EONET e assistente inteligente.">
+    <title>AgroGuard Satellite</title>
+    <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <section id="authScreen" class="auth-screen">
+        <div class="auth-panel">
+            <div class="brand">
+                <div class="brand-mark">AG</div>
+                <div>
+                    <p class="eyebrow">NASA POWER + EONET</p>
+                    <h1>AgroGuard Satellite</h1>
+                    <p class="lead">Monitoramento agricola com dados reais de satelite, alertas de desastre e recomendacoes inteligentes.</p>
+                </div>
+            </div>
+
+            <div class="auth-tabs" role="tablist" aria-label="Autenticacao">
+                <button id="loginTab" class="tab-button active" type="button">Login</button>
+                <button id="registerTab" class="tab-button" type="button">Cadastro</button>
+            </div>
+
+            <div id="authFeedback" class="auth-feedback hidden" role="alert"></div>
+
+            <form id="loginForm" class="form-stack">
+                <label>Email<input name="email" type="email" autocomplete="email" value="produtor@agroguard.com" required></label>
+                <label>Senha<input name="password" type="password" autocomplete="current-password" value="AgroGuard123" required></label>
+                <button class="primary-action" type="submit">Entrar</button>
+            </form>
+
+            <form id="registerForm" class="form-stack hidden">
+                <label>Nome<input name="name" type="text" autocomplete="name" value="Produtor Demo" required></label>
+                <label>Email<input name="email" type="email" autocomplete="email" value="produtor@agroguard.com" required></label>
+                <label>Senha<input name="password" type="password" autocomplete="new-password" value="AgroGuard123" minlength="8" required></label>
+                <button class="primary-action" type="submit">Criar conta</button>
+            </form>
+        </div>
+
+        <div class="auth-visual">
+            <div class="orbit-card">
+                <div class="orbit-map">
+                    <span class="orbit-point critical" style="--x: 18%; --y: 30%"></span>
+                    <span class="orbit-point high" style="--x: 52%; --y: 42%"></span>
+                    <span class="orbit-point low" style="--x: 76%; --y: 64%"></span>
+                    <span class="orbit-point moderate" style="--x: 36%; --y: 72%"></span>
+                </div>
+                <div class="orbit-copy">
+                    <span>ODS 2</span>
+                    <strong>Agricultura resiliente guiada por satelites</strong>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="appScreen" class="app-screen hidden">
+        <header class="header">
+            <div class="header-brand">
+                <div class="brand-mark small">AG</div>
+                <div>
+                    <strong>AgroGuard</strong>
+                    <span>Monitoramento por satelite + IA</span>
+                </div>
+            </div>
+
+            <div class="location-search">
+                <input id="locationInput" type="text" value="-15.7800, -47.9300" aria-label="Latitude e longitude">
+                <button id="searchButton" class="icon-action" type="button" title="Buscar coordenada">Buscar</button>
+                <button id="geoButton" class="secondary-action compact" type="button">Minha localizacao</button>
+            </div>
+
+            <div class="header-actions">
+                <span id="locationBadge" class="location-badge">-15.7800, -47.9300</span>
+                <a class="secondary-action compact" href="/swagger" target="_blank" rel="noreferrer">Swagger</a>
+                <button id="refreshButton" class="secondary-action compact" type="button">Atualizar</button>
+                <button id="logoutButton" class="danger-action compact" type="button">Sair</button>
+            </div>
+        </header>
+
+        <main class="main">
+            <section class="stats-grid" aria-label="Indicadores agroclimaticos">
+                <article class="stat-card temp">
+                    <span>Temperatura media</span>
+                    <strong id="tempValue">-- C</strong>
+                    <small id="tempDetail">Max: -- | Min: --</small>
+                </article>
+                <article class="stat-card rain">
+                    <span>Chuva acumulada</span>
+                    <strong id="rainValue">-- mm</strong>
+                    <small id="rainDetail">-- dias com chuva</small>
+                </article>
+                <article class="stat-card humidity">
+                    <span>Umidade relativa</span>
+                    <strong id="humidityValue">--%</strong>
+                    <small id="humidityDetail">Media do periodo</small>
+                </article>
+                <article class="stat-card solar">
+                    <span>Radiacao solar</span>
+                    <strong id="solarValue">-- MJ/m2</strong>
+                    <small id="solarDetail">Media diaria</small>
+                </article>
+                <article class="stat-card ndvi">
+                    <span>NDVI estimado</span>
+                    <strong id="ndviValue">--</strong>
+                    <small id="ndviDetail">Indice de vegetacao</small>
+                    <div class="ndvi-bar"><div id="ndviFill"></div></div>
+                </article>
+            </section>
+
+            <section class="dashboard-grid">
+                <article class="panel map-card">
+                    <div class="panel-header">
+                        <div>
+                            <h2>Mapa de monitoramento</h2>
+                            <span>Clique no mapa para analisar qualquer coordenada</span>
+                        </div>
+                        <strong id="eventsBadge" class="event-badge">0 alertas</strong>
+                    </div>
+                    <div id="worldMap" class="world-map"></div>
+                </article>
+
+                <article class="panel chart-card">
+                    <div class="panel-header">
+                        <h2>Tendencia climatica</h2>
+                        <div class="segmented">
+                            <button class="chart-tab active" type="button" data-chart="temperature">Temperatura</button>
+                            <button class="chart-tab" type="button" data-chart="rainfall">Chuva</button>
+                        </div>
+                    </div>
+                    <div class="chart-shell">
+                        <canvas id="climateChart" aria-label="Grafico climatico"></canvas>
+                    </div>
+                </article>
+
+                <article class="panel alerts-card">
+                    <div class="panel-header">
+                        <h2>Alertas de desastres</h2>
+                        <span>NASA EONET</span>
+                    </div>
+                    <div id="naturalEventsList" class="event-list"></div>
+                </article>
+            </section>
+
+            <section class="lower-grid">
+                <article class="panel analysis-card">
+                    <div class="panel-header">
+                        <div>
+                            <h2>Analise da coordenada</h2>
+                            <span id="analysisSource">NASA POWER Daily API</span>
+                        </div>
+                    </div>
+                    <div id="coordinateAnalysis" class="analysis-body"></div>
+                </article>
+
+                <article class="panel farms-card">
+                    <div class="panel-header">
+                        <div>
+                            <h2>Fazendas globais analisadas</h2>
+                            <span>Catalogo demonstrativo com leitura NASA por latitude e longitude</span>
+                        </div>
+                    </div>
+                    <div id="worldFarmList" class="farm-strip"></div>
+                </article>
+            </section>
+        </main>
+
+        <aside class="chat">
+            <button id="chatToggle" class="chat-toggle" type="button" title="Abrir assistente">AI</button>
+            <section id="chatPanel" class="chat-panel">
+                <header class="chat-header">
+                    <div>
+                        <strong>AgroGuard AI</strong>
+                        <span>Assistente agricola contextual</span>
+                    </div>
+                    <button id="chatClose" type="button" title="Fechar">x</button>
+                </header>
+                <div id="chatMessages" class="chat-messages"></div>
+                <div class="chat-suggestions">
+                    <button type="button" data-message="Como esta a situacao da minha lavoura?">Analise da lavoura</button>
+                    <button type="button" data-message="Existe risco de seca nessa coordenada?">Risco de seca</button>
+                    <button type="button" data-message="Quando devo irrigar?">Irrigacao</button>
+                    <button type="button" data-message="Quais acoes devo priorizar agora?">Acoes prioritarias</button>
+                </div>
+                <form id="chatForm" class="chat-input">
+                    <input id="chatInput" type="text" placeholder="Pergunte sobre a area analisada...">
+                    <button type="submit">Enviar</button>
+                </form>
+            </section>
+        </aside>
+
+        <div id="loadingOverlay" class="loading-overlay hidden">
+            <div>
+                <strong>Conectando com satelites da NASA</strong>
+                <span>Atualizando clima, vegetacao e eventos naturais</span>
+                <div class="loading-bar"><span></span></div>
+            </div>
+        </div>
+    </section>
+
+    <script src="/vendor/leaflet/leaflet.js" defer></script>
+    <script src="/app.js" defer></script>
+</body>
+</html>

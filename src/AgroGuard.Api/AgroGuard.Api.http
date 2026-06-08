@@ -1,0 +1,66 @@
+@AgroGuard.Api_HostAddress = http://localhost:5218
+@token = paste-jwt-here
+
+POST {{AgroGuard.Api_HostAddress}}/api/auth/register
+Content-Type: application/json
+
+{
+  "name": "Produtor Demo",
+  "email": "produtor@agroguard.com",
+  "password": "AgroGuard123"
+}
+
+###
+
+POST {{AgroGuard.Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "produtor@agroguard.com",
+  "password": "AgroGuard123"
+}
+
+###
+
+GET {{AgroGuard.Api_HostAddress}}/api/crops
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+GET {{AgroGuard.Api_HostAddress}}/api/nasa/global-farms
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+POST {{AgroGuard.Api_HostAddress}}/api/nasa/coordinates/analyze
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "latitude": -12.544,
+  "longitude": -55.721,
+  "cropName": "Soybean",
+  "areaHectares": 250
+}
+
+###
+
+POST {{AgroGuard.Api_HostAddress}}/api/farms
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "Fazenda Horizonte Verde",
+  "city": "Ribeirao Preto",
+  "state": "SP",
+  "latitude": -21.1775,
+  "longitude": -47.8103,
+  "totalAreaHectares": 1240.50
+}
+
+###
+
+GET {{AgroGuard.Api_HostAddress}}/health
+Accept: application/json
