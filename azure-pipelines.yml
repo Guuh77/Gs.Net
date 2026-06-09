@@ -1,0 +1,62 @@
+# ==============================================================================
+# GLOBAL SOLUTION - ADVANCED BUSINESS DEVELOPMENT WITH .NET
+# PIPELINE DE BUILD (CI) - AZURE PIPELINES (YAML)
+# PROJETO: AgroGuard
+# ==============================================================================
+
+trigger:
+  branches:
+    include:
+      - main
+pr: none
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  buildConfiguration: 'Release'
+  dotnetVersion: '8.0.x'
+
+steps:
+- task: UseDotNet@2
+  displayName: 'Instalar .NET SDK $(dotnetVersion)'
+  inputs:
+    packageType: 'sdk'
+    version: '$(dotnetVersion)'
+
+- task: DotNetCoreCLI@2
+  displayName: 'Restaurar Pacotes NuGet (dotnet restore)'
+  inputs:
+    command: 'restore'
+    projects: '**/*.csproj'
+
+- task: DotNetCoreCLI@2
+  displayName: 'Compilar Solução (dotnet build)'
+  inputs:
+    command: 'build'
+    projects: '**/*.csproj'
+    arguments: '--configuration $(buildConfiguration)'
+
+- task: DotNetCoreCLI@2
+  displayName: 'Executar Testes Unitários (dotnet test)'
+  inputs:
+    command: 'test'
+    projects: 'tests/AgroGuard.UnitTests/AgroGuard.UnitTests.csproj'
+    arguments: '--configuration $(buildConfiguration) --collect "Code Coverage"'
+    publishTestResults: true
+
+- task: DotNetCoreCLI@2
+  displayName: 'Publicar Artefatos da API (dotnet publish)'
+  inputs:
+    command: 'publish'
+    publishWebProjects: false
+    projects: 'src/AgroGuard.Api/AgroGuard.Api.csproj'
+    arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)'
+    zipAfterPublish: true
+
+- task: PublishPipelineArtifact@1
+  displayName: 'Publicar Artefato para CD (Publish Artifact)'
+  inputs:
+    targetPath: '$(Build.ArtifactStagingDirectory)'
+    artifactName: 'drop'
+    publishLocation: 'pipeline'

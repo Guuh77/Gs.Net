@@ -397,3 +397,136 @@ dotnet tool restore
 dotnet tool run dotnet-ef database update --project src\AgroGuard.Infrastructure\AgroGuard.Infrastructure.csproj --startup-project src\AgroGuard.Api\AgroGuard.Api.csproj --context AgroGuardDbContext
 
 dotnet run --project src\AgroGuard.Api\AgroGuard.Api.csproj --urls http://localhost:5218
+
+
+## DevOps & Cloud (Azure DevOps & Azure CLI)
+
+Esta seção documenta a infraestrutura em nuvem, a pipeline de CI/CD e as políticas de controle de código implementadas no Azure DevOps para a Global Solution.
+
+### 1. Desenho Macro da Arquitetura
+
+O diagrama abaixo ilustra o fluxo de dados desde a requisição do cliente até os recursos em nuvem no Azure, bem como a esteira de integração e entrega contínuas:
+
+![Desenho Macro da Arquitetura](architecture_diagram.png)
+
+**Fluxo de Funcionamento:**
+1. O desenvolvedor realiza commits e cria Pull Requests vinculados às tarefas do **Azure Boards**.
+2. Após aprovação e merge da PR na branch `main`, a pipeline de CI (**Azure Pipelines**) compila a API .NET 8, roda os testes unitários (xUnit) e publica o artefato `drop` (ZIP).
+3. A pipeline de CD (**Release**) é disparada pelo novo artefato e realiza o deploy no **Azure App Service**.
+4. O **Azure App Service** se comunica de forma segura com o container do **Oracle Database (ACI)** usando variáveis de ambiente configuradas para a string de conexão.
+
+---
+
+### 2. Provisionamento via Azure CLI (Infraestrutura como Código)
+
+Os scripts de infraestrutura e banco estão na pasta `/scripts`:
+* **`script-infra.sh`**: Cria o Resource Group (`rg-agroguard-gs`), o banco de dados Oracle no Azure Container Instances (ACI), o plano do App Service (Linux) e o Web App (.NET 8). Adiciona a connection string segura (`Oracle`) e as configurações de JWT nas App Settings do Web App.
+* **`script-bd.sql`**: Contém o DDL completo de todas as tabelas (`AG_USERS`, `AG_CROPS`, `AG_FARMS`, `AG_FIELDS`, `AG_SATELLITE_READINGS`, `AG_RISK_ALERTS`), chaves primárias, estrangeiras, índices e dados iniciais de semente.
+
+Para executar o script de infraestrutura localmente:
+```bash
+chmod +x scripts/script-infra.sh
+./scripts/script-infra.sh
+```
+
+---
+
+### 3. Configuração do Azure DevOps
+
+#### 3.1. Políticas de Branch Protection (Branch `main`)
+Para proteger o código em produção, a branch `main` foi configurada com as seguintes políticas:
+1. **Revisores Obrigatórios**: Mínimo de 1 revisor para aprovar Pull Requests.
+2. **Vinculação de Work Items**: Exige que commits/PRs estejam vinculados a um card do Azure Boards.
+3. **Revisores Padrão**: Inclusão automática do revisor padrão (RM do aluno/Professor).
+4. **Simulação de Auto-Aprovação**: Permissão ativada temporariamente para o criador do PR aprovar sua própria alteração para fins acadêmicos.
+
+#### 3.2. Azure Pipelines (Build - CI)
+O arquivo `azure-pipeline.yml` está na raiz e executa:
+1. Instalação do SDK do .NET 8.
+2. `dotnet restore` de todas as dependências.
+3. `dotnet build` em modo Release.
+4. `dotnet test` (execução e publicação dos resultados dos testes unitários xUnit).
+5. `dotnet publish` gerando o ZIP do Web App.
+6. Publicação do artefato `drop`.
+
+#### 3.3. Azure Release Pipelines (Deploy - CD)
+A release pipeline deve ser criada de forma visual no portal do Azure DevOps com:
+* **Trigger de Artefato**: Habilitado para disparar automaticamente a cada build bem-sucedido na branch `main`.
+* **Stage de Deploy**: Uma tarefa do tipo `Azure Web App Deploy` configurada para implantar o pacote ZIP no Web App criado.
+
+---
+
+### 4. Exemplos Completos de CRUD (JSON)
+
+Caso não utilize a interface Swagger interativa, os payloads para testar os endpoints de CRUD são os seguintes:
+
+#### 4.1. Criar Usuário (POST /api/auth/register)
+```json
+{
+  "name": "Agricultor GS",
+  "email": "agricultor.gs@agroguard.com",
+  "password": "AgroGuard123Password"
+}
+```
+
+#### 4.2. Login (POST /api/auth/login)
+```json
+{
+  "email": "agricultor.gs@agroguard.com",
+  "password": "AgroGuard123Password"
+}
+```
+
+#### 4.3. Cadastrar Fazenda (POST /api/farms)
+*Requer JWT no Header: `Authorization: Bearer {token}`*
+```json
+{
+  "name": "Fazenda Agro Guard",
+  "city": "Campinas",
+  "state": "SP",
+  "latitude": -22.9064,
+  "longitude": -47.0616,
+  "totalAreaHectares": 850.75
+}
+```
+
+#### 4.4. Cadastrar Talhão (POST /api/fields)
+*Requer JWT no Header. ID da Cultura de Soja do Seed: `11111111-1111-1111-1111-111111111111`*
+```json
+{
+  "farmId": "ID_DA_FAZENDA_RETORNADO_NO_PASSO_4.3",
+  "cropId": "11111111-1111-1111-1111-111111111111",
+  "name": "Talhão A1 - Soja",
+  "areaHectares": 120.50,
+  "latitude": -22.9070,
+  "longitude": -47.0620,
+  "soilType": "Argiloso",
+  "plantedAt": "2026-06-01T08:00:00Z",
+  "expectedHarvestAt": "2026-10-15T18:00:00Z"
+}
+```
+
+#### 4.5. Enviar Leitura Satelital (POST /api/fields/{id}/readings)
+*Substituir `{id}` pelo ID do Talhão. Requer JWT.*
+```json
+{
+  "capturedAt": "2026-06-08T12:00:00Z",
+  "source": "Sentinel-2 Satellite",
+  "ndvi": 0.380,
+  "soilMoisturePercent": 15.50,
+  "surfaceTemperatureCelsius": 38.00,
+  "rainfallMillimeters": 0.00,
+  "cloudCoveragePercent": 5.00
+}
+```
+*Resposta: Retorna a leitura salva e uma lista de alertas de risco estimados (como seca ou incêndio).*
+
+#### 4.6. Listar Alertas (GET /api/alerts)
+*Requer JWT no Header. Retorna todos os alertas gerados.*
+
+#### 4.7. Resolver Alerta (PATCH /api/alerts/{id}/resolve)
+*Substituir `{id}` pelo ID do Alerta. Requer JWT no Header.*
+```json
+{}
+```
+

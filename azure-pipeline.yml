@@ -1,0 +1,70 @@
+# ==============================================================================
+# GLOBAL SOLUTION - ADVANCED BUSINESS DEVELOPMENT WITH .NET
+# PIPELINE DE BUILD (CI) - AZURE PIPELINES (YAML)
+# ARQUIVO OBRIGATÓRIO NA RAIZ DO REPOSITÓRIO: azure-pipeline.yml
+# PROJETO: AgroGuard
+# ==============================================================================
+
+# Executado apenas após merges na branch main via PR (Trigger condicional)
+trigger:
+  branches:
+    include:
+      - main
+pr: none # Evita acionamento automático duplicado durante a análise do PR
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  buildConfiguration: 'Release'
+  dotnetVersion: '8.0.x'
+
+steps:
+# 1. Instalação do SDK do .NET 8
+- task: UseDotNet@2
+  displayName: 'Instalar .NET SDK $(dotnetVersion)'
+  inputs:
+    packageType: 'sdk'
+    version: '$(dotnetVersion)'
+
+# 2. Restauração de dependências NuGet
+- task: DotNetCoreCLI@2
+  displayName: 'Restaurar Pacotes NuGet (dotnet restore)'
+  inputs:
+    command: 'restore'
+    projects: '**/*.csproj'
+
+# 3. Compilação da Solução Completa
+- task: DotNetCoreCLI@2
+  displayName: 'Compilar Solução (dotnet build)'
+  inputs:
+    command: 'build'
+    projects: '**/*.csproj'
+    arguments: '--configuration $(buildConfiguration)'
+
+# 4. Execução de Testes Unitários e Publicação de Resultados (xUnit)
+- task: DotNetCoreCLI@2
+  displayName: 'Executar Testes Unitários (dotnet test)'
+  inputs:
+    command: 'test'
+    projects: 'tests/AgroGuard.UnitTests/AgroGuard.UnitTests.csproj'
+    arguments: '--configuration $(buildConfiguration) --collect "Code Coverage"'
+    publishTestResults: true
+
+# 5. Publicação do Web App API (Gera o arquivo ZIP de implantação)
+- task: DotNetCoreCLI@2
+  displayName: 'Publicar Artefatos da API (dotnet publish)'
+  inputs:
+    command: 'publish'
+    publishWebProjects: false
+    projects: 'src/AgroGuard.Api/AgroGuard.Api.csproj'
+    arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)'
+    zipAfterPublish: true
+
+# 6. Upload dos Artefatos de Build para a Release Pipeline (CD)
+- task: PublishPipelineArtifact@1
+  displayName: 'Publicar Artefato para CD (Publish Artifact)'
+  inputs:
+    targetPath: '$(Build.ArtifactStagingDirectory)'
+    artifactName: 'drop'
+    publishLocation: 'pipeline'
