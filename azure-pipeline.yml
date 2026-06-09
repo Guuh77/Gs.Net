@@ -13,7 +13,7 @@ trigger:
 pr: none # Evita acionamento automático duplicado durante a análise do PR
 
 pool:
-  vmImage: 'ubuntu-latest'
+  name: 'Default' # Direciona para o agente local (Self-Hosted) para evitar erro de Parallel Jobs da Azure
 
 variables:
   buildConfiguration: 'Release'
