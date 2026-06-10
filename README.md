@@ -1,4 +1,5 @@
 # AgroGuard Satellite API
+Link do Video: https://youtu.be/B0n9HiArEjY
 
 API REST em ASP.NET Core para monitoramento agricola com leituras satelitais, estimativa de risco e alertas preventivos para propriedades rurais.
 
